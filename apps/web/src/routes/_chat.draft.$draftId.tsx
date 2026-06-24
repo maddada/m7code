@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import ChatView from "../components/ChatView";
 import { threadHasStarted } from "../components/ChatView.logic";
 import {
@@ -8,6 +8,10 @@ import {
   useComposerDraftStore,
 } from "../composerDraftStore";
 import { SidebarInset } from "../components/ui/sidebar";
+import {
+  ensureGhostexDraftThreadSession,
+  readGhostexDraftThreadBootstrap,
+} from "../ghostexDraftBootstrap";
 import { buildThreadRouteParams } from "../threadRoutes";
 import { useThread, useThreadRefs } from "../state/entities";
 
@@ -15,6 +19,22 @@ function DraftChatThreadRouteView() {
   const navigate = useNavigate();
   const { draftId: rawDraftId } = Route.useParams();
   const draftId = DraftId.make(rawDraftId);
+  const ghostexDraftBootstrap = useMemo(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+    return readGhostexDraftThreadBootstrap(new URLSearchParams(window.location.search));
+  }, [rawDraftId]);
+  if (ghostexDraftBootstrap) {
+    /**
+     * CDXC:T3GhostexDraftBootstrap 2026-06-23-06:55:
+     * Ghostex opens a new T3 pane through a draft URL and users should land on
+     * the same composer surface as T3's own project-sidebar plus button, not
+     * the "Pick a thread" index shell. Seed the external draft session before
+     * selecting route state so the first committed render can show ChatView.
+     */
+    ensureGhostexDraftThreadSession(draftId, ghostexDraftBootstrap);
+  }
   const draftSession = useComposerDraftStore((store) => store.getDraftSession(draftId));
   const threadRefs = useThreadRefs();
   const inferredThreadRef = draftSession
@@ -48,11 +68,11 @@ function DraftChatThreadRouteView() {
   }, [canonicalThreadRef, navigate]);
 
   useEffect(() => {
-    if (draftSession || canonicalThreadRef) {
+    if (draftSession || canonicalThreadRef || ghostexDraftBootstrap) {
       return;
     }
     void navigate({ to: "/", replace: true });
-  }, [canonicalThreadRef, draftSession, navigate]);
+  }, [canonicalThreadRef, draftSession, ghostexDraftBootstrap, navigate]);
 
   if (canonicalThreadRef) {
     return (
