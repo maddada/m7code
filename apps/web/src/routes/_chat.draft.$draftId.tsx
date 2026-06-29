@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo } from "react";
+import { createFileRoute, useLocation, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import ChatView from "../components/ChatView";
 import { threadHasStarted } from "../components/ChatView.logic";
 import {
@@ -19,12 +19,15 @@ function DraftChatThreadRouteView() {
   const navigate = useNavigate();
   const { draftId: rawDraftId } = Route.useParams();
   const draftId = DraftId.make(rawDraftId);
-  const ghostexDraftBootstrap = useMemo(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-    return readGhostexDraftThreadBootstrap(new URLSearchParams(window.location.search));
-  }, [rawDraftId]);
+  const searchStr = useLocation({ select: (location) => location.searchStr });
+  /**
+   * CDXC:T3GhostexDraftBootstrap 2026-06-28-20:26:
+   * Ghostex can retarget an existing embedded WKWebView from the T3 index shell to a native draft URL.
+   * Read the active TanStack location search string instead of memoizing a global browser query so React Compiler cannot hoist a previous empty query parse and leave new native T3 panes on the thread picker.
+   */
+  const ghostexDraftBootstrap = readGhostexDraftThreadBootstrap(
+    new URLSearchParams(searchStr),
+  );
   if (ghostexDraftBootstrap) {
     /**
      * CDXC:T3GhostexDraftBootstrap 2026-06-23-06:55:
