@@ -100,6 +100,11 @@ describe("ghostexDraftBootstrap", () => {
       "utf8",
     );
 
+    expect(routeSource).toContain("useLocation");
+    expect(routeSource).toContain("location.searchStr");
+    expect(routeSource).toContain("new URLSearchParams(searchStr)");
+    expect(routeSource).not.toContain("window.location.search");
+    expect(routeSource).not.toContain("useMemo");
     expect(routeSource.indexOf("ensureGhostexDraftThreadSession(draftId")).toBeLessThan(
       routeSource.indexOf("const draftSession = useComposerDraftStore"),
     );
