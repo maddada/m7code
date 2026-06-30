@@ -16,9 +16,10 @@ describe("AppRoot", () => {
     const children = Children.toArray(
       (root as ReactElement<{ readonly children: ReactNode }>).props.children,
     );
-    expect(children).toHaveLength(3);
+    expect(children).toHaveLength(4);
     expect(isValidElement(children[0]) && children[0].type).toBe(RouterProvider);
-    expect(isValidElement(children[1]) && children[1].type).toBe(PreviewAutomationHosts);
-    expect(isValidElement(children[2]) && children[2].type).toBe(ElectronBrowserHost);
+    expect(isValidElement(children[1]) && typeof children[1].type === "function").toBe(true);
+    expect(isValidElement(children[2]) && children[2].type).toBe(PreviewAutomationHosts);
+    expect(isValidElement(children[3]) && children[3].type).toBe(ElectronBrowserHost);
   });
 });
