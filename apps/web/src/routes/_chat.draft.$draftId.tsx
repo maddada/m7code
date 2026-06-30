@@ -15,6 +15,23 @@ import {
 import { buildThreadRouteParams } from "../threadRoutes";
 import { useThread, useThreadRefs } from "../state/entities";
 
+function seedGhostexDraftThreadSessionFromRoute(input: {
+  draftId: DraftId;
+  searchStr: string;
+}) {
+  const ghostexDraftBootstrap = readGhostexDraftThreadBootstrap(
+    new URLSearchParams(input.searchStr),
+  );
+  if (ghostexDraftBootstrap) {
+    /*
+    CDXC:T3GhostexDraftBootstrap 2026-07-01-03:09:
+    Embedded Ghostex draft launches must seed the draft session before the route component renders ChatView. Mutating the zustand draft store during render can leave ChatView with a stale external-store snapshot and show the "No active thread" empty state even though the URL contains a valid Ghostex draft descriptor.
+    */
+    ensureGhostexDraftThreadSession(input.draftId, ghostexDraftBootstrap);
+  }
+  return ghostexDraftBootstrap;
+}
+
 function DraftChatThreadRouteView() {
   const navigate = useNavigate();
   const { draftId: rawDraftId } = Route.useParams();
@@ -28,16 +45,6 @@ function DraftChatThreadRouteView() {
   const ghostexDraftBootstrap = readGhostexDraftThreadBootstrap(
     new URLSearchParams(searchStr),
   );
-  if (ghostexDraftBootstrap) {
-    /**
-     * CDXC:T3GhostexDraftBootstrap 2026-06-23-06:55:
-     * Ghostex opens a new T3 pane through a draft URL and users should land on
-     * the same composer surface as T3's own project-sidebar plus button, not
-     * the "Pick a thread" index shell. Seed the external draft session before
-     * selecting route state so the first committed render can show ChatView.
-     */
-    ensureGhostexDraftThreadSession(draftId, ghostexDraftBootstrap);
-  }
   const draftSession = useComposerDraftStore((store) => store.getDraftSession(draftId));
   const threadRefs = useThreadRefs();
   const inferredThreadRef = draftSession
@@ -51,6 +58,17 @@ function DraftChatThreadRouteView() {
   const serverThread = useThread(serverThreadRef);
   const serverThreadStarted = threadHasStarted(serverThread);
   const canonicalThreadRef = serverThreadStarted ? serverThreadRef : null;
+
+  useEffect(() => {
+    if (draftSession || !ghostexDraftBootstrap) {
+      return;
+    }
+    /*
+    CDXC:T3GhostexDraftBootstrap 2026-07-01-03:45:
+    Persisted composer-store hydration can run after route beforeLoad and clear the freshly seeded Ghostex draft. Re-assert the validated host-owned draft from an effect so new embedded T3 sessions remain on an empty composer instead of falling through to the thread picker.
+    */
+    ensureGhostexDraftThreadSession(draftId, ghostexDraftBootstrap);
+  }, [draftId, draftSession, ghostexDraftBootstrap]);
 
   useEffect(() => {
     if (!inferredThreadRef || draftSession?.promotedTo) {
@@ -106,5 +124,13 @@ function DraftChatThreadRouteView() {
 }
 
 export const Route = createFileRoute("/_chat/draft/$draftId")({
+  beforeLoad: ({ location, params }) => {
+    return {
+      ghostexDraftBootstrap: seedGhostexDraftThreadSessionFromRoute({
+        draftId: DraftId.make(params.draftId),
+        searchStr: location.searchStr,
+      }),
+    };
+  },
   component: DraftChatThreadRouteView,
 });

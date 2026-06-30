@@ -1,19 +1,59 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { LinkIcon, PlusIcon } from "lucide-react";
+import { useEffect, useMemo } from "react";
 
 import { NoActiveThreadState } from "../components/NoActiveThreadState";
 import { Button } from "../components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "../components/ui/empty";
 import { SidebarInset } from "../components/ui/sidebar";
+import {
+  ensureGhostexDraftThreadSession,
+  readGhostexDraftIdFromLaunchSearch,
+  readGhostexDraftThreadBootstrap,
+} from "../ghostexDraftBootstrap";
 import { useEnvironments } from "../state/environments";
+import { buildDraftThreadRouteParams } from "../threadRoutes";
 import { APP_DISPLAY_NAME } from "~/branding";
 import { hasCloudPublicConfig } from "~/cloud/publicConfig";
 import { cn } from "~/lib/utils";
 import { COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS } from "~/workspaceTitlebar";
 
 function ChatIndexRouteView() {
+  const navigate = useNavigate();
+  const searchStr = useLocation({ select: (location) => location.searchStr });
   const { authGateState } = Route.useRouteContext();
   const { environments } = useEnvironments();
+  const ghostexDraftRoute = useMemo(() => {
+    const search = new URLSearchParams(searchStr);
+    const draftId = readGhostexDraftIdFromLaunchSearch(search);
+    if (!draftId) {
+      return null;
+    }
+    const bootstrap = readGhostexDraftThreadBootstrap(search);
+    return bootstrap ? { bootstrap, draftId } : null;
+  }, [searchStr]);
+
+  useEffect(() => {
+    if (!ghostexDraftRoute) {
+      return;
+    }
+    /*
+    CDXC:T3GhostexDraftBootstrap 2026-07-01-03:45:
+    New Ghostex-owned T3 sessions must open directly to their draft composer. If the embedded launch descriptor reaches the chat index shell, seed the draft and replace the route before the generic no-thread state becomes visible.
+    */
+    if (!ensureGhostexDraftThreadSession(ghostexDraftRoute.draftId, ghostexDraftRoute.bootstrap)) {
+      return;
+    }
+    void navigate({
+      to: "/draft/$draftId",
+      params: buildDraftThreadRouteParams(ghostexDraftRoute.draftId),
+      replace: true,
+    });
+  }, [ghostexDraftRoute, navigate]);
+
+  if (ghostexDraftRoute) {
+    return null;
+  }
 
   if (authGateState.status === "hosted-static" && environments.length === 0) {
     return <HostedStaticOnboardingState />;

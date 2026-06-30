@@ -8,7 +8,9 @@ import { beforeEach, describe, expect, it } from "vite-plus/test";
 import { DraftId, useComposerDraftStore } from "./composerDraftStore";
 import {
   ensureGhostexDraftThreadSession,
+  readGhostexDraftIdFromLaunchSearch,
   readGhostexDraftThreadBootstrap,
+  stableGhostexDraftIdFromSessionId,
 } from "./ghostexDraftBootstrap";
 
 function resetComposerDraftStore() {
@@ -58,6 +60,29 @@ describe("ghostexDraftBootstrap", () => {
     });
   });
 
+  it("derives stable Ghostex draft ids from native launch session ids", () => {
+    expect(stableGhostexDraftIdFromSessionId("G34e2")).toBe(
+      DraftId.make("ghostex-draft-g34e2"),
+    );
+    expect(stableGhostexDraftIdFromSessionId(" Project:Session 42 ")).toBe(
+      DraftId.make("ghostex-draft-project-session-42"),
+    );
+
+    expect(
+      readGhostexDraftIdFromLaunchSearch(
+        new URLSearchParams({
+          ghostexEmbedded: "1",
+          ghostexDraft: "1",
+          ghostexProjectId: "P3lv0",
+          ghostexSessionId: "G34e2",
+          environmentId: "environment-ghostex",
+          projectId: "project-ghostex",
+          threadId: "thread-ghostex",
+        }),
+      ),
+    ).toBe(DraftId.make("ghostex-draft-g34e2"));
+  });
+
   it("creates an idempotent draft session for the native thread id", () => {
     const draftId = DraftId.make("draft-ghostex");
     const environmentId = EnvironmentId.make("environment-ghostex");
@@ -94,20 +119,37 @@ describe("ghostexDraftBootstrap", () => {
     });
   });
 
-  it("seeds Ghostex draft routes before the draft session selector runs", () => {
+  it("seeds Ghostex draft routes before the draft route component renders", () => {
     const routeSource = readFileSync(
       new URL("./routes/_chat.draft.$draftId.tsx", import.meta.url),
       "utf8",
     );
 
+    const componentSource = routeSource.slice(
+      routeSource.indexOf("function DraftChatThreadRouteView()"),
+      routeSource.indexOf("export const Route"),
+    );
     expect(routeSource).toContain("useLocation");
     expect(routeSource).toContain("location.searchStr");
     expect(routeSource).toContain("new URLSearchParams(searchStr)");
+    expect(routeSource).toContain("beforeLoad");
+    expect(routeSource).toContain("seedGhostexDraftThreadSessionFromRoute");
     expect(routeSource).not.toContain("window.location.search");
     expect(routeSource).not.toContain("useMemo");
-    expect(routeSource.indexOf("ensureGhostexDraftThreadSession(draftId")).toBeLessThan(
-      routeSource.indexOf("const draftSession = useComposerDraftStore"),
+    expect(componentSource).toContain("ensureGhostexDraftThreadSession");
+    expect(componentSource).toContain("draftSession || !ghostexDraftBootstrap");
+  });
+
+  it("routes embedded Ghostex draft launches from the chat index to their draft composer", () => {
+    const routeSource = readFileSync(
+      new URL("./routes/_chat.index.tsx", import.meta.url),
+      "utf8",
     );
-    expect(routeSource).not.toContain("draftSession || !ghostexDraftBootstrap");
+
+    expect(routeSource).toContain("readGhostexDraftIdFromLaunchSearch");
+    expect(routeSource).toContain("ensureGhostexDraftThreadSession");
+    expect(routeSource).toContain('to: "/draft/$draftId"');
+    expect(routeSource).toContain("buildDraftThreadRouteParams");
+    expect(routeSource).toContain("if (ghostexDraftRoute)");
   });
 });

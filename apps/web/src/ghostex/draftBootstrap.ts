@@ -4,7 +4,10 @@ import {
 } from "@t3tools/client-runtime/environment";
 import { EnvironmentId, ProjectId, ThreadId } from "@t3tools/contracts";
 import { DraftId, useComposerDraftStore } from "../composerDraftStore";
-import { rememberGhostexT3EmbeddedLaunchFromSearch } from "./embeddedLaunch";
+import {
+  readGhostexT3EmbeddedLaunch,
+  rememberGhostexT3EmbeddedLaunchFromSearch,
+} from "./embeddedLaunch";
 
 export interface GhostexDraftThreadBootstrap {
   environmentId: EnvironmentId;
@@ -18,6 +21,37 @@ const GHOSTEX_DRAFT_FLAG = "1";
 function readNonEmptyParam(search: URLSearchParams, key: string): string | null {
   const value = search.get(key)?.trim();
   return value ? value : null;
+}
+
+function normalizeGhostexDraftIdentityComponent(sessionId: string): string {
+  const normalized = sessionId
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return normalized || "session";
+}
+
+export function stableGhostexDraftIdFromSessionId(sessionId: string): DraftId {
+  /*
+  CDXC:T3GhostexDraftBootstrap 2026-07-01-03:45:
+  Embedded Ghostex draft panes use a host-owned session id to derive their T3 draft route. The T3 index route needs the same deterministic draft id so a native launch that lands on `/` can route itself to the composer instead of showing the thread picker.
+  */
+  return DraftId.make(`ghostex-draft-${normalizeGhostexDraftIdentityComponent(sessionId)}`);
+}
+
+export function readGhostexDraftIdFromLaunchSearch(search: URLSearchParams): DraftId | null {
+  const embeddedLaunch = readGhostexT3EmbeddedLaunch(search);
+  if (embeddedLaunch?.isDraft) {
+    return stableGhostexDraftIdFromSessionId(embeddedLaunch.ghostexSessionId);
+  }
+
+  if (search.get("ghostexDraft") !== GHOSTEX_DRAFT_FLAG) {
+    return null;
+  }
+
+  const ghostexSessionId = readNonEmptyParam(search, "ghostexSessionId");
+  return ghostexSessionId ? stableGhostexDraftIdFromSessionId(ghostexSessionId) : null;
 }
 
 export function readGhostexDraftThreadBootstrap(
