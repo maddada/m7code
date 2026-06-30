@@ -1,6 +1,6 @@
 import { useAtomValue } from "@effect/atom-react";
-import { useEffect, type CSSProperties, type ReactNode } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useLocation, useNavigate } from "@tanstack/react-router";
 
 import { isElectron } from "../env";
 import { resolveShortcutCommand, shortcutLabelForCommand } from "../keybindings";
@@ -9,6 +9,7 @@ import { primaryServerKeybindingsAtom } from "../state/server";
 import ThreadSidebar from "./Sidebar";
 import { Sidebar, SidebarProvider, SidebarRail, SidebarTrigger, useSidebar } from "./ui/sidebar";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
+import { resolveGhostexT3EmbeddedLaunch } from "../ghostex/embeddedLayout";
 
 const THREAD_SIDEBAR_WIDTH_STORAGE_KEY = "chat_thread_sidebar_width";
 const THREAD_SIDEBAR_MIN_WIDTH = 13 * 16;
@@ -55,10 +56,28 @@ function SidebarControl() {
 
 export function AppSidebarLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const searchStr = useLocation({ select: (location) => location.searchStr });
+  const ghostexEmbeddedLaunch = useMemo(
+    () => resolveGhostexT3EmbeddedLaunch(searchStr),
+    [searchStr],
+  );
+  const defaultSidebarOpen = ghostexEmbeddedLaunch?.t3SidebarMode === "collapsed" ? false : true;
+  const [sidebarOpen, setSidebarOpen] = useState(defaultSidebarOpen);
+  const embeddedLaunchKey = ghostexEmbeddedLaunch
+    ? `${ghostexEmbeddedLaunch.ghostexProjectId}:${ghostexEmbeddedLaunch.ghostexSessionId}:${ghostexEmbeddedLaunch.t3SidebarMode}`
+    : "standalone";
   const macosWindowControlsStyle =
     isElectron && isMacPlatform(navigator.platform)
       ? ({ "--workspace-controls-left": MACOS_TRAFFIC_LIGHTS_LEFT_INSET } as CSSProperties)
       : undefined;
+
+  useEffect(() => {
+    /*
+    CDXC:T3SessionOwnership 2026-07-01-02:17:
+    Ghostex embedded T3 panes should start with T3's own sidebar collapsed, but not hidden. Reset the controlled sidebar state only when the embedding descriptor changes so the visible rail/trigger can still expand settings and upstream controls during the current session.
+    */
+    setSidebarOpen(defaultSidebarOpen);
+  }, [defaultSidebarOpen, embeddedLaunchKey]);
 
   useEffect(() => {
     const onMenuAction = window.desktopBridge?.onMenuAction;
@@ -78,7 +97,13 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
   }, [navigate]);
 
   return (
-    <SidebarProvider className="h-dvh! min-h-0!" defaultOpen style={macosWindowControlsStyle}>
+    <SidebarProvider
+      className="h-dvh! min-h-0!"
+      defaultOpen={defaultSidebarOpen}
+      onOpenChange={setSidebarOpen}
+      open={sidebarOpen}
+      style={macosWindowControlsStyle}
+    >
       <Sidebar
         side="left"
         collapsible="offcanvas"

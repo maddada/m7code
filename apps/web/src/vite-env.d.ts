@@ -23,5 +23,14 @@ declare global {
   interface Window {
     nativeApi?: LocalApi;
     desktopBridge?: DesktopBridge;
+    __VSMUX_T3_ACTIVE_THREAD_ID__?: string;
+    __VSMUX_T3_ACTIVE_THREAD_TITLE__?: string;
+    webkit?: {
+      messageHandlers?: {
+        ghostexT3CodePaneDiagnostics?: {
+          postMessage: (message: unknown) => void;
+        };
+      };
+    };
   }
 }

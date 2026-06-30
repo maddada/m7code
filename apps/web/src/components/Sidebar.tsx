@@ -64,6 +64,7 @@ import {
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
 import { Link, useLocation, useNavigate, useParams, useRouter } from "@tanstack/react-router";
+import { emitGhostexT3NavigationRequested } from "../ghostex/hostEvents";
 import {
   MAX_SIDEBAR_THREAD_PREVIEW_COUNT,
   MIN_SIDEBAR_THREAD_PREVIEW_COUNT,
@@ -1703,6 +1704,7 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       if (isMobile) {
         setOpenMobile(false);
       }
+      emitGhostexT3NavigationRequested(String(threadRef.threadId));
       void router.navigate({
         to: "/$environmentId/$threadId",
         params: buildThreadRouteParams(threadRef),
@@ -1749,6 +1751,7 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       if (isMobile) {
         setOpenMobile(false);
       }
+      emitGhostexT3NavigationRequested(String(threadRef.threadId));
       void router.navigate({
         to: "/$environmentId/$threadId",
         params: buildThreadRouteParams(threadRef),
@@ -3289,6 +3292,7 @@ export default function Sidebar() {
       if (isMobile) {
         setOpenMobile(false);
       }
+      emitGhostexT3NavigationRequested(String(threadRef.threadId));
       void navigate({
         to: "/$environmentId/$threadId",
         params: buildThreadRouteParams(threadRef),

@@ -53,7 +53,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useLocation, useNavigate } from "@tanstack/react-router";
 import { useShallow } from "zustand/react/shallow";
 import {
   isAtomCommandInterrupted,
@@ -165,6 +165,7 @@ import {
   useComposerDraftStore,
   type DraftId,
 } from "../composerDraftStore";
+import { useGhostexT3HostSync, type GhostexT3ActivityState } from "../ghostex/hostEvents";
 import {
   appendTerminalContextsToPrompt,
   formatTerminalContextLabel,
@@ -1041,6 +1042,7 @@ function ChatViewContent(props: ChatViewProps) {
     routeKind === "server" ? store.threadLastVisitedAtById[routeThreadKey] : undefined,
   );
   const settings = useEnvironmentSettings(environmentId);
+  const searchStr = useLocation({ select: (location) => location.searchStr });
   const setStickyComposerModelSelection = useComposerDraftStore(
     (store) => store.setStickyModelSelection,
   );
@@ -1813,6 +1815,20 @@ function ChatViewContent(props: ChatViewProps) {
     threadError,
   });
   const isWorking = phase === "running" || isSendBusy || isConnecting || isRevertingCheckpoint;
+  const ghostexT3Activity: GhostexT3ActivityState =
+    activePendingApproval || activePendingUserInput || threadError
+      ? "attention"
+      : isWorking
+        ? "working"
+        : "idle";
+  useGhostexT3HostSync({
+    activity: ghostexT3Activity,
+    environmentId,
+    routeKind,
+    searchStr,
+    threadId: activeThread?.id ?? threadId,
+    title: activeThread?.title,
+  });
   const activeWorkStartedAt = deriveActiveWorkStartedAt(
     activeLatestTurn,
     activeThread?.session ?? null,
