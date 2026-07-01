@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
+import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { LinkIcon, PlusIcon } from "lucide-react";
 import { useEffect, useMemo } from "react";
 
@@ -11,8 +12,9 @@ import {
   readGhostexDraftIdFromLaunchSearch,
   readGhostexDraftThreadBootstrap,
 } from "../ghostexDraftBootstrap";
+import { rememberGhostexT3EmbeddedLaunchFromSearch } from "../ghostex/embeddedLaunch";
 import { useEnvironments } from "../state/environments";
-import { buildDraftThreadRouteParams } from "../threadRoutes";
+import { buildDraftThreadRouteParams, buildThreadRouteParams } from "../threadRoutes";
 import { APP_DISPLAY_NAME } from "~/branding";
 import { hasCloudPublicConfig } from "~/cloud/publicConfig";
 import { cn } from "~/lib/utils";
@@ -32,6 +34,31 @@ function ChatIndexRouteView() {
     const bootstrap = readGhostexDraftThreadBootstrap(search);
     return bootstrap ? { bootstrap, draftId } : null;
   }, [searchStr]);
+  const ghostexThreadRoute = useMemo(() => {
+    const launch = rememberGhostexT3EmbeddedLaunchFromSearch(searchStr);
+    if (!launch || launch.isDraft) {
+      return null;
+    }
+    return {
+      environmentId: launch.environmentId as EnvironmentId,
+      threadId: launch.threadId as ThreadId,
+    };
+  }, [searchStr]);
+
+  useEffect(() => {
+    if (!ghostexThreadRoute) {
+      return;
+    }
+    /*
+    CDXC:T3SessionRestore 2026-07-01-19:22:
+    If a Ghostex-owned embedded pane reaches the chat index with a persisted launch descriptor, restore the bound thread route before the generic no-thread picker renders.
+    */
+    void navigate({
+      to: "/$environmentId/$threadId",
+      params: buildThreadRouteParams(ghostexThreadRoute),
+      replace: true,
+    });
+  }, [ghostexThreadRoute, navigate]);
 
   useEffect(() => {
     if (!ghostexDraftRoute) {
@@ -51,7 +78,7 @@ function ChatIndexRouteView() {
     });
   }, [ghostexDraftRoute, navigate]);
 
-  if (ghostexDraftRoute) {
+  if (ghostexThreadRoute || ghostexDraftRoute) {
     return null;
   }
 
