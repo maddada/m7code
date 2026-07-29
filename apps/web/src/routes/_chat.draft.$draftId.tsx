@@ -8,6 +8,7 @@ import {
   useComposerDraftStore,
 } from "../composerDraftStore";
 import { SidebarInset } from "../components/ui/sidebar";
+import { waitForDraftHeroTransition } from "../components/chat/draftHeroTransition";
 import {
   ensureGhostexDraftThreadSession,
   readGhostexDraftThreadBootstrap,
@@ -15,10 +16,7 @@ import {
 import { buildThreadRouteParams } from "../threadRoutes";
 import { useThread, useThreadRefs } from "../state/entities";
 
-function seedGhostexDraftThreadSessionFromRoute(input: {
-  draftId: DraftId;
-  searchStr: string;
-}) {
+function seedGhostexDraftThreadSessionFromRoute(input: { draftId: DraftId; searchStr: string }) {
   const ghostexDraftBootstrap = readGhostexDraftThreadBootstrap(
     new URLSearchParams(input.searchStr),
   );
@@ -42,9 +40,7 @@ function DraftChatThreadRouteView() {
    * Ghostex can retarget an existing embedded WKWebView from the T3 index shell to a native draft URL.
    * Read the active TanStack location search string instead of memoizing a global browser query so React Compiler cannot hoist a previous empty query parse and leave new native T3 panes on the thread picker.
    */
-  const ghostexDraftBootstrap = readGhostexDraftThreadBootstrap(
-    new URLSearchParams(searchStr),
-  );
+  const ghostexDraftBootstrap = readGhostexDraftThreadBootstrap(new URLSearchParams(searchStr));
   const draftSession = useComposerDraftStore((store) => store.getDraftSession(draftId));
   const threadRefs = useThreadRefs();
   const inferredThreadRef = draftSession
@@ -81,11 +77,22 @@ function DraftChatThreadRouteView() {
     if (!canonicalThreadRef) {
       return;
     }
-    void navigate({
-      to: "/$environmentId/$threadId",
-      params: buildThreadRouteParams(canonicalThreadRef),
-      replace: true,
+
+    let cancelled = false;
+    void waitForDraftHeroTransition().then(() => {
+      if (cancelled) {
+        return;
+      }
+      void navigate({
+        to: "/$environmentId/$threadId",
+        params: buildThreadRouteParams(canonicalThreadRef),
+        replace: true,
+      });
     });
+
+    return () => {
+      cancelled = true;
+    };
   }, [canonicalThreadRef, navigate]);
 
   useEffect(() => {
@@ -94,18 +101,6 @@ function DraftChatThreadRouteView() {
     }
     void navigate({ to: "/", replace: true });
   }, [canonicalThreadRef, draftSession, ghostexDraftBootstrap, navigate]);
-
-  if (canonicalThreadRef) {
-    return (
-      <SidebarInset className="h-svh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground md:h-dvh">
-        <ChatView
-          environmentId={canonicalThreadRef.environmentId}
-          threadId={canonicalThreadRef.threadId}
-          routeKind="server"
-        />
-      </SidebarInset>
-    );
-  }
 
   if (!draftSession) {
     return null;
@@ -118,6 +113,7 @@ function DraftChatThreadRouteView() {
         environmentId={draftSession.environmentId}
         threadId={draftSession.threadId}
         routeKind="draft"
+        forceExpandedMobileComposer
       />
     </SidebarInset>
   );

@@ -1,7 +1,4 @@
-import {
-  scopedProjectKey,
-  scopeProjectRef,
-} from "@t3tools/client-runtime/environment";
+import { scopedProjectKey, scopeProjectRef } from "@t3tools/client-runtime/environment";
 import { EnvironmentId, ProjectId, ThreadId } from "@t3tools/contracts";
 import { DraftId, useComposerDraftStore } from "../composerDraftStore";
 import {

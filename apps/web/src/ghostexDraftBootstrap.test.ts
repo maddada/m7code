@@ -1,8 +1,4 @@
-import { readFileSync } from "node:fs";
-import {
-  scopedProjectKey,
-  scopeProjectRef,
-} from "@t3tools/client-runtime/environment";
+import { scopedProjectKey, scopeProjectRef } from "@t3tools/client-runtime/environment";
 import { EnvironmentId, ProjectId, ThreadId } from "@t3tools/contracts";
 import { beforeEach, describe, expect, it } from "vite-plus/test";
 import { DraftId, useComposerDraftStore } from "./composerDraftStore";
@@ -12,6 +8,8 @@ import {
   readGhostexDraftThreadBootstrap,
   stableGhostexDraftIdFromSessionId,
 } from "./ghostexDraftBootstrap";
+import chatIndexRouteSource from "./routes/_chat.index.tsx?raw";
+import draftRouteSource from "./routes/_chat.draft.$draftId.tsx?raw";
 
 function resetComposerDraftStore() {
   useComposerDraftStore.setState({
@@ -61,9 +59,7 @@ describe("ghostexDraftBootstrap", () => {
   });
 
   it("derives stable Ghostex draft ids from native launch session ids", () => {
-    expect(stableGhostexDraftIdFromSessionId("G34e2")).toBe(
-      DraftId.make("ghostex-draft-g34e2"),
-    );
+    expect(stableGhostexDraftIdFromSessionId("G34e2")).toBe(DraftId.make("ghostex-draft-g34e2"));
     expect(stableGhostexDraftIdFromSessionId(" Project:Session 42 ")).toBe(
       DraftId.make("ghostex-draft-project-session-42"),
     );
@@ -120,10 +116,7 @@ describe("ghostexDraftBootstrap", () => {
   });
 
   it("seeds Ghostex draft routes before the draft route component renders", () => {
-    const routeSource = readFileSync(
-      new URL("./routes/_chat.draft.$draftId.tsx", import.meta.url),
-      "utf8",
-    );
+    const routeSource = draftRouteSource;
 
     const componentSource = routeSource.slice(
       routeSource.indexOf("function DraftChatThreadRouteView()"),
@@ -141,15 +134,12 @@ describe("ghostexDraftBootstrap", () => {
   });
 
   it("routes embedded Ghostex draft launches from the chat index to their draft composer", () => {
-    const routeSource = readFileSync(
-      new URL("./routes/_chat.index.tsx", import.meta.url),
-      "utf8",
-    );
+    const routeSource = chatIndexRouteSource;
 
     expect(routeSource).toContain("readGhostexDraftIdFromLaunchSearch");
     expect(routeSource).toContain("ensureGhostexDraftThreadSession");
     expect(routeSource).toContain('to: "/draft/$draftId"');
     expect(routeSource).toContain("buildDraftThreadRouteParams");
-    expect(routeSource).toContain("if (ghostexDraftRoute)");
+    expect(routeSource).toContain("if (ghostexThreadRoute || ghostexDraftRoute)");
   });
 });

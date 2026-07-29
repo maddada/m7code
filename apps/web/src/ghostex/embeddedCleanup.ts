@@ -41,7 +41,9 @@ function stableGhostexDraftId(sessionId: string): DraftId {
   return DraftId.make(`ghostex-draft-${normalizeGhostexIdentityComponent(sessionId)}`);
 }
 
-function cleanupCandidateKey(launch: Pick<GhostexT3EmbeddedLaunch, "ghostexProjectId" | "ghostexSessionId">): string {
+function cleanupCandidateKey(
+  launch: Pick<GhostexT3EmbeddedLaunch, "ghostexProjectId" | "ghostexSessionId">,
+): string {
   return `${launch.ghostexProjectId}:${launch.ghostexSessionId}`;
 }
 
@@ -94,7 +96,10 @@ function parseCandidateCreatedAt(candidate: StoredGhostexT3CleanupCandidate): nu
   return Number.isFinite(createdAt) ? createdAt : Date.now();
 }
 
-function isCandidatePastCleanupGrace(candidate: StoredGhostexT3CleanupCandidate, now: number): boolean {
+function isCandidatePastCleanupGrace(
+  candidate: StoredGhostexT3CleanupCandidate,
+  now: number,
+): boolean {
   return now - parseCandidateCreatedAt(candidate) >= CLEANUP_GRACE_MS;
 }
 
@@ -160,7 +165,9 @@ function canDeleteServerThread(candidate: StoredGhostexT3CleanupCandidate): bool
   );
 }
 
-async function deleteEmptyServerThreadIfSafe(candidate: StoredGhostexT3CleanupCandidate): Promise<boolean> {
+async function deleteEmptyServerThreadIfSafe(
+  candidate: StoredGhostexT3CleanupCandidate,
+): Promise<boolean> {
   if (!canDeleteServerThread(candidate)) {
     return false;
   }
@@ -200,7 +207,9 @@ function deleteEmptyDraftIfSafe(candidate: StoredGhostexT3CleanupCandidate): boo
   return true;
 }
 
-async function deleteEmptyT3RecordIfSafe(candidate: StoredGhostexT3CleanupCandidate): Promise<boolean> {
+async function deleteEmptyT3RecordIfSafe(
+  candidate: StoredGhostexT3CleanupCandidate,
+): Promise<boolean> {
   if (hasServerThread(candidate)) {
     return deleteEmptyServerThreadIfSafe(candidate);
   }
